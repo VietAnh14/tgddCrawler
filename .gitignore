@@ -197,4 +197,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Gen file
+dong-ho-deo-tay/
+dong-ho-thong-minh/
+may-tinh-bang/
+laptop/
+dtdd/
+
 # End of https://www.gitignore.io/api/python,pycharm

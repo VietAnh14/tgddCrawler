@@ -14,14 +14,6 @@ CATEGORIES_CODE = {
     'dong-ho-deo-tay': '7264'
 }
 
-# CATEGORIES_NAME = {
-#     '42': 'dtdd',
-#     '522': 'may-tinh-bang',
-#     '44': 'laptop',
-#     '7077': 'dong-ho-thong-minh',
-#     '7264': 'dong-ho-deo-tay'
-# }
-
 
 class Tgdd(scrapy.Spider):
     name = 'tgdd'
@@ -47,17 +39,19 @@ class Tgdd(scrapy.Spider):
         url = 'https://www.thegioididong.com/aj/CategoryV5/Product'
         print('--------------------------------')
         items = response.css('ul.homeproduct  li  a::attr(href)').extract()
+
+        # Send request to get item details
         for item in items:
             item_link = self.url + item
             yield scrapy.Request(url=item_link, callback=self.parse_item)
 
         if text is not None:
-            category = self.get_category_code(response)
+            category_code = self.get_category_code(response)
             page_index = self.get_page_index(response)
-            print(page_index)
-            print(category)
+
+            # Create form data to send ajax request
             frm_data = {
-                'Category': str(category),
+                'Category': str(category_code),
                 'Manufacture': '0',
                 'PriceRange': '0',
                 'Feature': '0',
@@ -70,6 +64,7 @@ class Tgdd(scrapy.Spider):
             }
             yield scrapy.FormRequest(url=url, callback=self.parse, formdata=frm_data, dont_filter=True)
 
+    # Get page index
     @staticmethod
     def get_page_index(response):
         form_data = response.request.body.decode("utf-8")
@@ -92,6 +87,7 @@ class Tgdd(scrapy.Spider):
             category_code = form_data[0].split("=")[1]
             return category_code
 
+    # Parse item details
     def parse_item(self, response):
         name = response.css('body > section > div.rowtop > h1::text').get()
         price = response.css('#normalproduct > aside.price_sale > div.area_price > strong::text').get()
@@ -105,13 +101,20 @@ class Tgdd(scrapy.Spider):
             'article': article,
             'rating': rating
         }
-        print(item)
 
+        # Save item
+        path = self.get_file_path(response)
+        file_path = '.%s.json' % path
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(item, f, ensure_ascii=False)
+            self.log('Save file %s' % file_path)
 
     @staticmethod
     def parse_article(response):
         characteristics_title = response.css(' div.characteristics > h2::text').get()
         characteristics_images = response.css('div.item > img').xpath('@data-src').getall()
+
+        # Raw article, only text
         raw_article = response.xpath('//article[@class="area_article"]/descendant::text()[not(ancestor::div/@class="boxRtAtc")]')
         list_content = raw_article.getall()
         content = ' '.join(txt.strip() for txt in list_content)
@@ -121,3 +124,9 @@ class Tgdd(scrapy.Spider):
             'content': content,
         }
         return article
+
+    @staticmethod
+    def get_file_path(response):
+        url = response.request.url
+        file_path = url.replace('https://www.thegioididong.com', '')
+        return file_path
