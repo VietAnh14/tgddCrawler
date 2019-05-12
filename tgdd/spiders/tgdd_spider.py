@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import os
+import json
 
 
 CATEGORIES = ['dtdd', 'may-tinh-bang', 'laptop', 'dong-ho-thong-minh', 'dong-ho-deo-tay']
@@ -20,6 +21,7 @@ CATEGORIES_CODE = {
 #     '7077': 'dong-ho-thong-minh',
 #     '7264': 'dong-ho-deo-tay'
 # }
+
 
 class Tgdd(scrapy.Spider):
     name = 'tgdd'
@@ -47,8 +49,7 @@ class Tgdd(scrapy.Spider):
         items = response.css('ul.homeproduct  li  a::attr(href)').extract()
         for item in items:
             item_link = self.url + item
-            yield scrapy.Request(url=item_link, callback=parse_item)
-            # print(item_link)
+            yield scrapy.Request(url=item_link, callback=self.parse_item)
 
         if text is not None:
             category = self.get_category_code(response)
@@ -93,35 +94,30 @@ class Tgdd(scrapy.Spider):
 
     def parse_item(self, response):
         name = response.css('body > section > div.rowtop > h1::text').get()
-        print(name)
+        price = response.css('#normalproduct > aside.price_sale > div.area_price > strong::text').get()
+        product_image = response.css('#normalproduct > aside.picture > img::attr(src)').get()
+        article = self.parse_article(response)
+        rating = response.css('#boxRatingCmt > div.toprt > div.crt > div.lcrt > b::text').get()
+        item = {
+            'name': name,
+            'price': price,
+            'product_image': product_image,
+            'article': article,
+            'rating': rating
+        }
+        print(item)
 
 
-
-    # @staticmethod
-    # def get_page_index(items_left):
-    #     page_index = ceil(items_left / 30)
-    #     return int(page_index)
-
-
-# @staticmethod
-# def get_page_num(response):
-#     page_num = response.request.url[-1]
-#     if page_num.isdigit():
-#         return page_num
-#     else:
-#         return '0'
-# if text is None:
-#     url = self.get_url_full(text.split(" ")[2], response.request.url)
-#     yield scrapy.Request(url, callback=self.parse)
-# else:
-#     for item in response.css('ul.homeproduct  li  a::attr(href)').extract():
-#         pass
-
-# # Get url of full item page
-# def get_url_full(self, current_url, items_left):
-#     num = int((int(items_left) / 30)) + 1
-#     full_url = current_url + '#i:%d' % num
-#     return full_url
-
-def parse_item(self, response):
-    pass
+    @staticmethod
+    def parse_article(response):
+        characteristics_title = response.css(' div.characteristics > h2::text').get()
+        characteristics_images = response.css('div.item > img').xpath('@data-src').getall()
+        raw_article = response.xpath('//article[@class="area_article"]/descendant::text()[not(ancestor::div/@class="boxRtAtc")]')
+        list_content = raw_article.getall()
+        content = ' '.join(txt.strip() for txt in list_content)
+        article = {
+            'characteristics_title': characteristics_title,
+            'characteristics_images': characteristics_images,
+            'content': content,
+        }
+        return article
